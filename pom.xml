@@ -20,7 +20,7 @@
     <scm>
         <url>https://github.com/Russian-AI-Cup/notreal2d</url>
         <connection>scm:git:git://github.com/Russian-AI-Cup/notreal2d.git</connection>
-        <developerConnection>scm:git:git@github.com:Russian-AI-Cup/notreal2d.git.git</developerConnection>
+        <developerConnection>scm:git:git@github.com:Russian-AI-Cup/notreal2d.git</developerConnection>
     </scm>
 
     <properties>
