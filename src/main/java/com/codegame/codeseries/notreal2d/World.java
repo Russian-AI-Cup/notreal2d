@@ -203,7 +203,8 @@ public class World {
         }
     }
 
-    private void collide(Body body, Body otherBody, Map<LongPair, CollisionInfo> collisionInfoByBodyIdsPair) {
+    private void collide(@Nonnull Body body, @Nonnull Body otherBody,
+                         @Nonnull Map<LongPair, CollisionInfo> collisionInfoByBodyIdsPair) {
         Body bodyA;
         Body bodyB;
 
@@ -248,7 +249,7 @@ public class World {
         }
     }
 
-    private void resolveCollision(CollisionInfo collisionInfo) {
+    private void resolveCollision(@Nonnull CollisionInfo collisionInfo) {
         Body bodyA = collisionInfo.getBodyA();
         Body bodyB = collisionInfo.getBodyB();
 
@@ -299,8 +300,9 @@ public class World {
         }
     }
 
-    private void resolveImpact(Body bodyA, Body bodyB, Vector3D collisionNormalB,
-                               Vector3D vectorAC, Vector3D vectorBC, Vector3D relativeVelocityC) {
+    private void resolveImpact(
+            @Nonnull Body bodyA, @Nonnull Body bodyB, @Nonnull Vector3D collisionNormalB,
+            @Nonnull Vector3D vectorAC, @Nonnull Vector3D vectorBC, @Nonnull Vector3D relativeVelocityC) {
         Double momentumTransferFactor;
 
         if (momentumTransferFactorProvider == null
@@ -346,8 +348,9 @@ public class World {
         }
     }
 
-    private void resolveSurfaceFriction(Body bodyA, Body bodyB, Vector3D collisionNormalB,
-                                        Vector3D vectorAC, Vector3D vectorBC, Vector3D relativeVelocityC) {
+    private void resolveSurfaceFriction(
+            @Nonnull Body bodyA, @Nonnull Body bodyB, @Nonnull Vector3D collisionNormalB,
+            @Nonnull Vector3D vectorAC, @Nonnull Vector3D vectorBC, @Nonnull Vector3D relativeVelocityC) {
         Vector3D tangent = relativeVelocityC
                 .subtract(collisionNormalB.scalarMultiply(relativeVelocityC.dotProduct(collisionNormalB)));
 
@@ -464,7 +467,7 @@ public class World {
         }
     }
 
-    private void pushBackBodies(Body bodyA, Body bodyB, CollisionInfo collisionInfo) {
+    private void pushBackBodies(@Nonnull Body bodyA, @Nonnull Body bodyB, @Nonnull CollisionInfo collisionInfo) {
         if (bodyA.isStatic()) {
             bodyB.getPosition().subtract(collisionInfo.getNormalB().multiply(collisionInfo.getDepth() + epsilon));
         } else if (bodyB.isStatic()) {
