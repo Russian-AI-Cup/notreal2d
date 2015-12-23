@@ -151,8 +151,33 @@ public class World {
         return bodyList.getBody(id);
     }
 
+    public boolean isColliding(@Nonnull Body body) {
+        return getCollisionInfo(body) != null;
+    }
+
     public List<Body> getBodies() {
         return bodyList.getBodies();
+    }
+
+    @Nullable
+    public CollisionInfo getCollisionInfo(@Nonnull Body body) {
+        if (!bodyList.hasBody(body)) {
+            return null;
+        }
+
+        for (Body otherBody : bodyList.getPotentialIntersections(body)) {
+            if (body.isStatic() && otherBody.isStatic()) {
+                continue;
+            }
+
+            for (ColliderEntry colliderEntry : colliderEntries) {
+                if (colliderEntry.collider.matches(body, otherBody)) {
+                    return colliderEntry.collider.collide(body, otherBody);
+                }
+            }
+        }
+
+        return null;
     }
 
     public void proceed() {
