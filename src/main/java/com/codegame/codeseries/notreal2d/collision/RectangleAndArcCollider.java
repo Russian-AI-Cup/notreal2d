@@ -5,13 +5,14 @@ import com.codeforces.commons.geometry.Point2D;
 import com.codeforces.commons.geometry.Vector2D;
 import com.codeforces.commons.holder.Mutable;
 import com.codeforces.commons.holder.SimpleMutable;
-import com.codeforces.commons.pair.SimplePair;
+import com.codeforces.commons.pair.Pair;
 import com.codegame.codeseries.notreal2d.Body;
 import com.codegame.codeseries.notreal2d.form.ArcForm;
 import com.codegame.codeseries.notreal2d.form.Form;
 import com.codegame.codeseries.notreal2d.form.RectangularForm;
 import com.codegame.codeseries.notreal2d.form.Shape;
 import com.codegame.codeseries.notreal2d.util.GeometryUtil;
+import org.apache.commons.lang3.mutable.MutableDouble;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -174,12 +175,12 @@ public class RectangleAndArcCollider extends ColliderBase {
 
             if (distance > radiusB - epsilon && vectorCB.dotProduct(vectorCA) < 0.0D) {
                 Mutable<Point2D> nearestPoint = new SimpleMutable<>();
-                Mutable<Double> distanceToNearestPoint = new SimpleMutable<>();
+                MutableDouble distanceToNearestPoint = new MutableDouble();
 
                 for (IntersectionInfo intersectionInfo : intersectionInfos) {
                     updateNearestPoint(bodyB, intersectionInfo.intersectionPoint, nearestPoint, distanceToNearestPoint);
 
-                    for (SimplePair<Point2D, Point2D> pointAndPoint : intersectionInfo.intersectionLinePointPairs) {
+                    for (Pair<Point2D, Point2D> pointAndPoint : intersectionInfo.intersectionLinePointPairs) {
                         updateNearestPoint(bodyB, pointAndPoint.getFirst(), nearestPoint, distanceToNearestPoint);
                         updateNearestPoint(bodyB, pointAndPoint.getSecond(), nearestPoint, distanceToNearestPoint);
                     }
@@ -188,11 +189,11 @@ public class RectangleAndArcCollider extends ColliderBase {
                 return nearestPoint.get() == null ? null : new CollisionInfo(
                         bodyA, bodyB, nearestPoint.get(),
                         new Vector2D(bodyB.getPosition(), nearestPoint.get()).normalize(),
-                        radiusB - distanceToNearestPoint.get(), epsilon
+                        radiusB - distanceToNearestPoint.doubleValue(), epsilon
                 );
             } else {
                 Mutable<Point2D> farthestPoint = new SimpleMutable<>();
-                Mutable<Double> distanceToFarthestPoint = new SimpleMutable<>();
+                MutableDouble distanceToFarthestPoint = new MutableDouble();
 
                 for (IntersectionInfo intersectionInfo : intersectionInfos) {
                     updateFarthestPoint(
@@ -200,7 +201,7 @@ public class RectangleAndArcCollider extends ColliderBase {
                             startAngleB, finishAngleB
                     );
 
-                    for (SimplePair<Point2D, Point2D> pointAndPoint : intersectionInfo.intersectionLinePointPairs) {
+                    for (Pair<Point2D, Point2D> pointAndPoint : intersectionInfo.intersectionLinePointPairs) {
                         updateFarthestPoint(
                                 bodyB, pointAndPoint.getFirst(), farthestPoint, distanceToFarthestPoint,
                                 startAngleB, finishAngleB
@@ -215,7 +216,7 @@ public class RectangleAndArcCollider extends ColliderBase {
                 return farthestPoint.get() == null ? null : new CollisionInfo(
                         bodyA, bodyB, farthestPoint.get(),
                         new Vector2D(farthestPoint.get(), bodyB.getPosition()).normalize(),
-                        distanceToFarthestPoint.get() - radiusB, epsilon
+                        distanceToFarthestPoint.doubleValue() - radiusB, epsilon
                 );
             }
         }
@@ -223,25 +224,25 @@ public class RectangleAndArcCollider extends ColliderBase {
 
     private void updateNearestPoint(
             @Nonnull Body body, @Nonnull Point2D point, @Nonnull Mutable<Point2D> nearestPoint,
-            @Nonnull Mutable<Double> distanceToNearestPoint) {
+            @Nonnull MutableDouble distanceToNearestPoint) {
         double distanceToPoint = body.getDistanceTo(point);
 
         if (distanceToPoint >= epsilon
-                && (nearestPoint.get() == null || distanceToPoint < distanceToNearestPoint.get())) {
+                && (nearestPoint.get() == null || distanceToPoint < distanceToNearestPoint.doubleValue())) {
             nearestPoint.set(point);
-            distanceToNearestPoint.set(distanceToPoint);
+            distanceToNearestPoint.setValue(distanceToPoint);
         }
     }
 
     private static void updateFarthestPoint(
             @Nonnull Body body, @Nonnull Point2D point, @Nonnull Mutable<Point2D> farthestPoint,
-            @Nonnull Mutable<Double> distanceToFarthestPoint, double startAngle, double finishAngle) {
+            @Nonnull MutableDouble distanceToFarthestPoint, double startAngle, double finishAngle) {
         double distanceToPoint = body.getDistanceTo(point);
 
         if (GeometryUtil.isAngleBetween(new Vector2D(body.getPosition(), point).getAngle(), startAngle, finishAngle)
-                && (farthestPoint.get() == null || distanceToPoint > distanceToFarthestPoint.get())) {
+                && (farthestPoint.get() == null || distanceToPoint > distanceToFarthestPoint.doubleValue())) {
             farthestPoint.set(point);
-            distanceToFarthestPoint.set(distanceToPoint);
+            distanceToFarthestPoint.setValue(distanceToPoint);
         }
     }
 
@@ -270,7 +271,7 @@ public class RectangleAndArcCollider extends ColliderBase {
         for (IntersectionInfo intersectionInfo : intersectionInfos) {
             if (intersectionInfo.intersectionPoint.nearlyEquals(point, epsilon)) {
                 intersectionInfo.intersectionLines.add(lineA);
-                intersectionInfo.intersectionLinePointPairs.add(new SimplePair<>(point1A, point2A));
+                intersectionInfo.intersectionLinePointPairs.add(new Pair<>(point1A, point2A));
                 alreadyAdded = true;
                 break;
             }
@@ -279,7 +280,7 @@ public class RectangleAndArcCollider extends ColliderBase {
         if (!alreadyAdded) {
             IntersectionInfo intersectionInfo = new IntersectionInfo(point);
             intersectionInfo.intersectionLines.add(lineA);
-            intersectionInfo.intersectionLinePointPairs.add(new SimplePair<>(point1A, point2A));
+            intersectionInfo.intersectionLinePointPairs.add(new Pair<>(point1A, point2A));
             intersectionInfos.add(intersectionInfo);
         }
     }
@@ -288,7 +289,7 @@ public class RectangleAndArcCollider extends ColliderBase {
     private static final class IntersectionInfo {
         public final Point2D intersectionPoint;
         public final List<Line2D> intersectionLines = new ArrayList<>();
-        public final List<SimplePair<Point2D, Point2D>> intersectionLinePointPairs = new ArrayList<>();
+        public final List<Pair<Point2D, Point2D>> intersectionLinePointPairs = new ArrayList<>();
 
         private IntersectionInfo(Point2D intersectionPoint) {
             this.intersectionPoint = intersectionPoint;

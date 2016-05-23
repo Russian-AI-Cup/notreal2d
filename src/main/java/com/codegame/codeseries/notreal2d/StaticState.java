@@ -182,7 +182,7 @@ public class StaticState {
         }
 
         @Override
-        public void setFirst(Double first) {
+        public void setFirst(double first) {
             Point2D oldPosition = super.copy();
             Point2D newPosition = super.copy();
             newPosition.setFirst(first);
@@ -191,7 +191,7 @@ public class StaticState {
         }
 
         @Override
-        public void setSecond(Double second) {
+        public void setSecond(double second) {
             Point2D oldPosition = super.copy();
             Point2D newPosition = super.copy();
             newPosition.setSecond(second);
