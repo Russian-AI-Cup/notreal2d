@@ -39,7 +39,8 @@ public class BidirectionalMovementFrictionProvider implements MovementFrictionPr
 
     @Override
     public void applyFriction(Body body, double updateFactor) {
-        double velocityLength = body.getVelocity().getLength();
+        Vector2D velocity = body.getVelocity();
+        double velocityLength = velocity.getLength();
         if (velocityLength <= 0.0D) {
             return;
         }
@@ -48,9 +49,9 @@ public class BidirectionalMovementFrictionProvider implements MovementFrictionPr
         double crosswiseVelocityChange = crosswiseMovementFrictionFactor * updateFactor;
 
         Vector2D lengthwiseUnitVector = new Vector2D(1.0D, 0.0D).rotate(body.getAngle());
-        Vector2D crosswiseUnitVector = new Vector2D(0.0D, 1.0D).rotate(body.getAngle());
+        Vector2D crosswiseUnitVector = lengthwiseUnitVector.copy().rotateHalfPi();
 
-        double lengthwiseVelocityPart = body.getVelocity().dotProduct(lengthwiseUnitVector);
+        double lengthwiseVelocityPart = velocity.dotProduct(lengthwiseUnitVector);
 
         if (lengthwiseVelocityPart >= 0.0D) {
             lengthwiseVelocityPart -= lengthwiseVelocityChange;
@@ -64,7 +65,7 @@ public class BidirectionalMovementFrictionProvider implements MovementFrictionPr
             }
         }
 
-        double crosswiseVelocityPart = body.getVelocity().dotProduct(crosswiseUnitVector);
+        double crosswiseVelocityPart = velocity.dotProduct(crosswiseUnitVector);
 
         if (crosswiseVelocityPart >= 0.0D) {
             crosswiseVelocityPart -= crosswiseVelocityChange;
@@ -79,8 +80,8 @@ public class BidirectionalMovementFrictionProvider implements MovementFrictionPr
         }
 
         body.setVelocity(
-                lengthwiseUnitVector.copy().multiply(lengthwiseVelocityPart)
-                        .add(crosswiseUnitVector.copy().multiply(crosswiseVelocityPart))
+                lengthwiseUnitVector.multiply(lengthwiseVelocityPart)
+                        .add(crosswiseUnitVector.multiply(crosswiseVelocityPart))
         );
     }
 }
