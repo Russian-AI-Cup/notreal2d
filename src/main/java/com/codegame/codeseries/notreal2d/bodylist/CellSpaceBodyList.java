@@ -51,7 +51,7 @@ public class CellSpaceBodyList extends BodyListBase {
     }
 
     @Override
-    public void addBody(@Nonnull final Body body) {
+    public void addBody(@Nonnull Body body) {
         validateBody(body);
 
         if (bodies.contains(body)) {
@@ -59,7 +59,7 @@ public class CellSpaceBodyList extends BodyListBase {
         }
 
         double radius = body.getForm().getCircumcircleRadius();
-        final double diameter = 2.0D * radius;
+        double diameter = 2.0D * radius;
 
         if (diameter > cellSize && diameter <= maxCellSize) {
             cellSize = diameter;
@@ -270,9 +270,7 @@ public class CellSpaceBodyList extends BodyListBase {
         bodiesByCell.clear();
         cellExceedingBodies.clear();
 
-        for (Body body : bodies) {
-            addBodyToIndexes(body);
-        }
+        bodies.forEach(this::addBodyToIndexes);
     }
 
     private void addBodyToIndexes(@Nonnull Body body) {
@@ -418,7 +416,7 @@ public class CellSpaceBodyList extends BodyListBase {
         @Nonnull
         @Override
         public Iterator<E> iterator() {
-            final Iterator<E> iterator = collection.iterator();
+            Iterator<E> iterator = collection.iterator();
 
             return new UnmodifiableIterator<E>() {
                 @Override

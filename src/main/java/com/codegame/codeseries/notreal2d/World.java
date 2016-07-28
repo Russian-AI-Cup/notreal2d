@@ -180,6 +180,33 @@ public class World {
         return null;
     }
 
+    @Nonnull
+    public List<CollisionInfo> getCollisionInfos(@Nonnull Body body) {
+        if (!bodyList.hasBody(body)) {
+            return Collections.emptyList();
+        }
+
+        List<CollisionInfo> collisionInfos = new ArrayList<>();
+
+        for (Body otherBody : bodyList.getPotentialIntersections(body)) {
+            if (body.isStatic() && otherBody.isStatic()) {
+                continue;
+            }
+
+            for (ColliderEntry colliderEntry : colliderEntries) {
+                if (colliderEntry.collider.matches(body, otherBody)) {
+                    CollisionInfo collisionInfo = colliderEntry.collider.collide(body, otherBody);
+                    if (collisionInfo != null) {
+                        collisionInfos.add(collisionInfo);
+                    }
+                    break;
+                }
+            }
+        }
+
+        return Collections.unmodifiableList(collisionInfos);
+    }
+
     public void proceed() {
         List<Body> bodies = new ArrayList<>(getBodies());
 
@@ -211,7 +238,11 @@ public class World {
                 }
 
                 for (Body otherBody : bodyList.getPotentialIntersections(body)) {
-                    if (hasBody(body) && hasBody(otherBody)) {
+                    if (!hasBody(body)) {
+                        break;
+                    }
+
+                    if (hasBody(otherBody)) {
                         collide(body, otherBody, collisionInfoByBodyIdsPair);
                     }
                 }
