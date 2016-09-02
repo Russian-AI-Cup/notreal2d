@@ -101,6 +101,8 @@ public class Body {
 
     private Map<String, Object> attributeByName;
 
+    private final int hashCode = Long.hashCode(id);
+
     public long getId() {
         return id;
     }
@@ -609,7 +611,7 @@ public class Body {
     @Contract(pure = true)
     @Override
     public int hashCode() {
-        return (int) (id ^ (id >>> 32));
+        return hashCode;
     }
 
     @Contract("null -> false")

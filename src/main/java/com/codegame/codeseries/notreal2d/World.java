@@ -23,6 +23,7 @@ import static com.codeforces.commons.math.Math.*;
  * @author Maxim Shipko (sladethe@gmail.com)
  *         Date: 02.06.2015
  */
+@SuppressWarnings("WeakerAccess")
 public class World {
     private static final Logger logger = Logger.getLogger(World.class);
 
@@ -356,6 +357,7 @@ public class World {
         }
     }
 
+    @SuppressWarnings("Duplicates")
     private void resolveImpact(
             @Nonnull Body bodyA, @Nonnull Body bodyB, @Nonnull Vector3D collisionNormalB,
             @Nonnull Vector3D vectorAC, @Nonnull Vector3D vectorBC, @Nonnull Vector3D relativeVelocityC) {
@@ -404,6 +406,7 @@ public class World {
         }
     }
 
+    @SuppressWarnings("Duplicates")
     private void resolveSurfaceFriction(
             @Nonnull Body bodyA, @Nonnull Body bodyB, @Nonnull Vector3D collisionNormalB,
             @Nonnull Vector3D vectorAC, @Nonnull Vector3D vectorBC, @Nonnull Vector3D relativeVelocityC) {
@@ -637,16 +640,13 @@ public class World {
 
     @SuppressWarnings("PublicField")
     private static final class ColliderEntry extends NamedEntry {
-        private static final Comparator<ColliderEntry> comparator = new Comparator<ColliderEntry>() {
-            @Override
-            public int compare(ColliderEntry colliderEntryA, ColliderEntry colliderEntryB) {
-                int comparisonResult = Double.compare(colliderEntryB.priority, colliderEntryA.priority);
-                if (comparisonResult != 0) {
-                    return comparisonResult;
-                }
-
-                return colliderEntryA.name.compareTo(colliderEntryB.name);
+        private static final Comparator<ColliderEntry> comparator = (colliderEntryA, colliderEntryB) -> {
+            int comparisonResult = Double.compare(colliderEntryB.priority, colliderEntryA.priority);
+            if (comparisonResult != 0) {
+                return comparisonResult;
             }
+
+            return colliderEntryA.name.compareTo(colliderEntryB.name);
         };
 
         public final double priority;
@@ -662,16 +662,13 @@ public class World {
 
     @SuppressWarnings("PublicField")
     private static final class CollisionListenerEntry extends NamedEntry {
-        private static final Comparator<CollisionListenerEntry> comparator = new Comparator<CollisionListenerEntry>() {
-            @Override
-            public int compare(CollisionListenerEntry listenerEntryA, CollisionListenerEntry listenerEntryB) {
-                int comparisonResult = Double.compare(listenerEntryB.priority, listenerEntryA.priority);
-                if (comparisonResult != 0) {
-                    return comparisonResult;
-                }
-
-                return listenerEntryA.name.compareTo(listenerEntryB.name);
+        private static final Comparator<CollisionListenerEntry> comparator = (listenerEntryA, listenerEntryB) -> {
+            int comparisonResult = Double.compare(listenerEntryB.priority, listenerEntryA.priority);
+            if (comparisonResult != 0) {
+                return comparisonResult;
             }
+
+            return listenerEntryA.name.compareTo(listenerEntryB.name);
         };
 
         public final double priority;
