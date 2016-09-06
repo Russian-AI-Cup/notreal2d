@@ -4,6 +4,7 @@ import com.codeforces.commons.geometry.Point2D;
 import com.codeforces.commons.geometry.Vector2D;
 import com.codeforces.commons.math.NumberUtil;
 import com.codeforces.commons.pair.LongPair;
+import com.codeforces.commons.process.ThreadUtil;
 import com.codegame.codeseries.notreal2d.bodylist.BodyList;
 import com.codegame.codeseries.notreal2d.bodylist.SimpleBodyList;
 import com.codegame.codeseries.notreal2d.collision.*;
@@ -16,6 +17,8 @@ import org.apache.log4j.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.codeforces.commons.math.Math.*;
 
@@ -30,6 +33,11 @@ public class World {
     @SuppressWarnings("ConstantConditions")
     private static final CollisionInfo NULL_COLLISION_INFO = new CollisionInfo(null, null, null, null, 0.0D, 0.0D);
 
+    /**
+     * The only supported value is 2.
+     */
+    private static final int PARALLEL_THREAD_COUNT = 2;
+
     private final int iterationCountPerStep;
     private final int stepCountPerTimeUnit;
     private final double updateFactor;
@@ -39,6 +47,9 @@ public class World {
 
     private final BodyList bodyList;
     private final MomentumTransferFactorProvider momentumTransferFactorProvider;
+
+    @Nullable
+    private final ExecutorService parallelExecutor;
 
     private final Map<String, ColliderEntry> colliderEntryByName = new HashMap<>();
     private final SortedSet<ColliderEntry> colliderEntries = new TreeSet<>(ColliderEntry.comparator);
@@ -68,6 +79,11 @@ public class World {
 
     public World(int iterationCountPerStep, int stepCountPerTimeUnit, double epsilon, BodyList bodyList,
                  @Nullable MomentumTransferFactorProvider momentumTransferFactorProvider) {
+        this(iterationCountPerStep, stepCountPerTimeUnit, epsilon, bodyList, momentumTransferFactorProvider, false);
+    }
+
+    public World(int iterationCountPerStep, int stepCountPerTimeUnit, double epsilon, BodyList bodyList,
+                 @Nullable MomentumTransferFactorProvider momentumTransferFactorProvider, boolean multithreaded) {
         if (iterationCountPerStep < 1) {
             throw new IllegalArgumentException("Argument 'iterationCountPerStep' is zero or negative.");
         }
@@ -91,6 +107,22 @@ public class World {
         this.squaredEpsilon = epsilon * epsilon;
         this.bodyList = bodyList;
         this.momentumTransferFactorProvider = momentumTransferFactorProvider;
+
+        this.parallelExecutor = multithreaded ? new ThreadPoolExecutor(
+                0, PARALLEL_THREAD_COUNT, 2L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
+                new ThreadFactory() {
+                    private final AtomicInteger threadIndex = new AtomicInteger();
+
+                    @Override
+                    public Thread newThread(@Nonnull Runnable runnable) {
+                        return ThreadUtil.newThread(
+                                "notreal2d.World#ParallelExecutionThread-" + threadIndex.incrementAndGet(), runnable,
+                                (t, e) -> logger.error("Can't complete parallel task in thread '" + t + "'.", e),
+                                true
+                        );
+                    }
+                }
+        ) : null;
 
         registerCollider(new ArcAndArcCollider(epsilon));
         registerCollider(new ArcAndCircleCollider(epsilon));
@@ -208,10 +240,70 @@ public class World {
         return Collections.unmodifiableList(collisionInfos);
     }
 
+    @SuppressWarnings("ForLoopWithMissingComponent")
     public void proceed() {
-        List<Body> bodies = new ArrayList<>(getBodies());
+        Body[] bodies = toArray(getBodies());
+        int bodyCount = bodies.length;
 
-        for (Body body : bodies) {
+        if (bodyCount < 1000 || parallelExecutor == null) {
+            beforeStep(bodies, 0, bodyCount);
+
+            for (int i = iterationCountPerStep; --i >= 0; ) {
+                beforeIteration(bodies, 0, bodyCount);
+                processIteration(bodies);
+            }
+
+            afterStep(bodies, 0, bodyCount);
+        } else {
+            int middleIndex = bodyCount / PARALLEL_THREAD_COUNT;
+
+            Future<?> task1 = parallelExecutor.submit(() -> beforeStep(bodies, 0, middleIndex));
+            Future<?> task2 = parallelExecutor.submit(() -> beforeStep(bodies, middleIndex, bodyCount));
+
+            awaitParallelTask(task1);
+            awaitParallelTask(task2);
+
+            for (int i = iterationCountPerStep; --i >= 0; ) {
+                task1 = parallelExecutor.submit(() -> beforeIteration(bodies, 0, middleIndex));
+                task2 = parallelExecutor.submit(() -> beforeIteration(bodies, middleIndex, bodyCount));
+
+                awaitParallelTask(task1);
+                awaitParallelTask(task2);
+
+                processIteration(bodies);
+            }
+
+            afterStep(bodies, 0, bodyCount);
+
+            task1 = parallelExecutor.submit(() -> afterStep(bodies, 0, middleIndex));
+            task2 = parallelExecutor.submit(() -> afterStep(bodies, middleIndex, bodyCount));
+
+            awaitParallelTask(task1);
+            awaitParallelTask(task2);
+        }
+    }
+
+    private static void awaitParallelTask(@Nonnull Future<?> task) {
+        try {
+            task.get(2L, TimeUnit.MINUTES);
+        } catch (InterruptedException e) {
+            task.cancel(true);
+            logger.error("Thread has been interrupted while executing parallel task.", e);
+            throw new RuntimeException("Thread has been interrupted while executing parallel task.", e);
+        } catch (ExecutionException e) {
+            task.cancel(true);
+            logger.error("Thread has failed while executing parallel task.", e);
+            throw new RuntimeException("Thread has failed while executing parallel task.", e);
+        } catch (TimeoutException e) {
+            task.cancel(true);
+            logger.error("Thread has timed out while executing parallel task.", e);
+            throw new RuntimeException("Thread has timed out while executing parallel task.", e);
+        }
+    }
+
+    private void beforeStep(@Nonnull Body[] bodies, int leftIndex, int rightIndex) {
+        for (int bodyIndex = leftIndex; bodyIndex < rightIndex; ++bodyIndex) {
+            Body body = bodies[bodyIndex];
             if (!hasBody(body)) {
                 continue;
             }
@@ -219,38 +311,45 @@ public class World {
             body.normalizeAngle();
             body.saveBeforeStepState();
         }
+    }
 
-        for (int i = 1; i <= iterationCountPerStep; ++i) {
-            for (Body body : bodies) {
-                if (!hasBody(body)) {
-                    continue;
-                }
-
-                body.saveBeforeIterationState();
-                updateState(body);
-                body.normalizeAngle();
+    private void beforeIteration(@Nonnull Body[] bodies, int leftIndex, int rightIndex) {
+        for (int bodyIndex = leftIndex; bodyIndex < rightIndex; ++bodyIndex) {
+            Body body = bodies[bodyIndex];
+            if (!hasBody(body)) {
+                continue;
             }
 
-            Map<LongPair, CollisionInfo> collisionInfoByBodyIdsPair = new HashMap<>();
+            body.saveBeforeIterationState();
+            updateState(body);
+            body.normalizeAngle();
+        }
+    }
 
-            for (Body body : bodies) {
-                if (body.isStatic() || !hasBody(body)) {
-                    continue;
+    private void processIteration(@Nonnull Body[] bodies) {
+        Map<LongPair, CollisionInfo> collisionInfoByBodyIdsPair = new HashMap<>();
+
+        for (int bodyIndex = 0, bodyCount = bodies.length; bodyIndex < bodyCount; ++bodyIndex) {
+            Body body = bodies[bodyIndex];
+            if (body.isStatic() || !hasBody(body)) {
+                continue;
+            }
+
+            for (Body otherBody : bodyList.getPotentialIntersections(body)) {
+                if (!hasBody(body)) {
+                    break;
                 }
 
-                for (Body otherBody : bodyList.getPotentialIntersections(body)) {
-                    if (!hasBody(body)) {
-                        break;
-                    }
-
-                    if (hasBody(otherBody)) {
-                        collide(body, otherBody, collisionInfoByBodyIdsPair);
-                    }
+                if (hasBody(otherBody)) {
+                    collide(body, otherBody, collisionInfoByBodyIdsPair);
                 }
             }
         }
+    }
 
-        for (Body body : bodies) {
+    private void afterStep(@Nonnull Body[] bodies, int leftIndex, int rightIndex) {
+        for (int bodyIndex = leftIndex; bodyIndex < rightIndex; ++bodyIndex) {
+            Body body = bodies[bodyIndex];
             if (!hasBody(body)) {
                 continue;
             }
@@ -636,6 +735,11 @@ public class World {
     @Nonnull
     private static Vector3D toVector3D(@Nonnull Point2D point1, @Nonnull Point2D point2) {
         return toVector3D(new Vector2D(point1, point2));
+    }
+
+    @Nonnull
+    private static Body[] toArray(@Nonnull Collection<Body> bodies) {
+        return bodies.toArray(new Body[bodies.size()]);
     }
 
     @SuppressWarnings("PublicField")
