@@ -13,6 +13,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.util.*;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static com.codeforces.commons.math.Math.floor;
 import static com.codeforces.commons.math.Math.sqr;
@@ -71,6 +73,8 @@ public class CellSpaceBodyList extends BodyListBase {
         addBodyToIndexes(body);
 
         body.getCurrentState().registerPositionListener(new PositionListenerAdapter() {
+            private final Lock listenerLock = new ReentrantLock();
+
             @Override
             public void afterChangePosition(@Nonnull Point2D oldPosition, @Nonnull Point2D newPosition) {
                 if (diameter > cellSize) {
@@ -112,8 +116,13 @@ public class CellSpaceBodyList extends BodyListBase {
                     }
                 }
 
-                removeBodyFromIndexes(body, oldCellX, oldCellY);
-                addBodyToIndexes(body, newCellX, newCellY);
+                listenerLock.lock();
+                try {
+                    removeBodyFromIndexes(body, oldCellX, oldCellY);
+                    addBodyToIndexes(body, newCellX, newCellY);
+                } finally {
+                    listenerLock.unlock();
+                }
             }
         }, getClass().getSimpleName() + "Listener");
     }

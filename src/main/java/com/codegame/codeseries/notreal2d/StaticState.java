@@ -147,7 +147,7 @@ public class StaticState {
 
         @Nonnull
         @Override
-        public Point2D add(Vector2D vector) {
+        public Point2D add(@Nonnull Vector2D vector) {
             Point2D oldPosition = super.copy();
             Point2D newPosition = super.copy().add(vector);
 
@@ -165,7 +165,7 @@ public class StaticState {
 
         @Nonnull
         @Override
-        public Point2D subtract(Vector2D vector) {
+        public Point2D subtract(@Nonnull Vector2D vector) {
             Point2D oldPosition = super.copy();
             Point2D newPosition = super.copy().subtract(vector);
 
@@ -224,16 +224,13 @@ public class StaticState {
 
     @SuppressWarnings("PublicField")
     private static final class PositionListenerEntry extends NamedEntry {
-        private static final Comparator<PositionListenerEntry> comparator = new Comparator<PositionListenerEntry>() {
-            @Override
-            public int compare(PositionListenerEntry listenerEntryA, PositionListenerEntry listenerEntryB) {
-                int comparisonResult = Double.compare(listenerEntryB.priority, listenerEntryA.priority);
-                if (comparisonResult != 0) {
-                    return comparisonResult;
-                }
-
-                return listenerEntryA.name.compareTo(listenerEntryB.name);
+        private static final Comparator<PositionListenerEntry> comparator = (listenerEntryA, listenerEntryB) -> {
+            int comparisonResult = Double.compare(listenerEntryB.priority, listenerEntryA.priority);
+            if (comparisonResult != 0) {
+                return comparisonResult;
             }
+
+            return listenerEntryA.name.compareTo(listenerEntryB.name);
         };
 
         public final double priority;

@@ -551,9 +551,7 @@ public class Body {
 
     @Nonnull
     public Map<String, Object> getAttributeByName() {
-        return attributeByName == null
-                ? Collections.<String, Object>emptyMap()
-                : Collections.unmodifiableMap(attributeByName);
+        return attributeByName == null ? Collections.emptyMap() : Collections.unmodifiableMap(attributeByName);
     }
 
     @Nullable

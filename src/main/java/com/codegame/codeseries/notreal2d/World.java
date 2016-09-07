@@ -109,7 +109,7 @@ public class World {
         this.momentumTransferFactorProvider = momentumTransferFactorProvider;
 
         this.parallelExecutor = multithreaded ? new ThreadPoolExecutor(
-                0, PARALLEL_THREAD_COUNT, 2L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
+                0, PARALLEL_THREAD_COUNT - 1, 5L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
                 new ThreadFactory() {
                     private final AtomicInteger threadIndex = new AtomicInteger();
 
@@ -242,8 +242,9 @@ public class World {
 
     @SuppressWarnings("ForLoopWithMissingComponent")
     public void proceed() {
-        Body[] bodies = toArray(getBodies());
-        int bodyCount = bodies.length;
+        Collection<Body> bodyCollection = getBodies();
+        int bodyCount = bodyCollection.size();
+        Body[] bodies = bodyCollection.toArray(new Body[bodyCount]);
 
         if (bodyCount < 1000 || parallelExecutor == null) {
             beforeStep(bodies, 0, bodyCount);
@@ -257,45 +258,37 @@ public class World {
         } else {
             int middleIndex = bodyCount / PARALLEL_THREAD_COUNT;
 
-            Future<?> task1 = parallelExecutor.submit(() -> beforeStep(bodies, 0, middleIndex));
-            Future<?> task2 = parallelExecutor.submit(() -> beforeStep(bodies, middleIndex, bodyCount));
-
-            awaitParallelTask(task1);
-            awaitParallelTask(task2);
+            Future<?> parallelTask = parallelExecutor.submit(() -> beforeStep(bodies, 0, middleIndex));
+            beforeStep(bodies, middleIndex, bodyCount);
+            awaitParallelTask(parallelTask);
 
             for (int i = iterationCountPerStep; --i >= 0; ) {
-                task1 = parallelExecutor.submit(() -> beforeIteration(bodies, 0, middleIndex));
-                task2 = parallelExecutor.submit(() -> beforeIteration(bodies, middleIndex, bodyCount));
-
-                awaitParallelTask(task1);
-                awaitParallelTask(task2);
+                parallelTask = parallelExecutor.submit(() -> beforeIteration(bodies, 0, middleIndex));
+                beforeIteration(bodies, middleIndex, bodyCount);
+                awaitParallelTask(parallelTask);
 
                 processIteration(bodies);
             }
 
-            afterStep(bodies, 0, bodyCount);
-
-            task1 = parallelExecutor.submit(() -> afterStep(bodies, 0, middleIndex));
-            task2 = parallelExecutor.submit(() -> afterStep(bodies, middleIndex, bodyCount));
-
-            awaitParallelTask(task1);
-            awaitParallelTask(task2);
+            parallelTask = parallelExecutor.submit(() -> afterStep(bodies, 0, middleIndex));
+            afterStep(bodies, middleIndex, bodyCount);
+            awaitParallelTask(parallelTask);
         }
     }
 
-    private static void awaitParallelTask(@Nonnull Future<?> task) {
+    private static void awaitParallelTask(@Nonnull Future<?> parallelTask) {
         try {
-            task.get(2L, TimeUnit.MINUTES);
+            parallelTask.get(5L, TimeUnit.MINUTES);
         } catch (InterruptedException e) {
-            task.cancel(true);
+            parallelTask.cancel(true);
             logger.error("Thread has been interrupted while executing parallel task.", e);
             throw new RuntimeException("Thread has been interrupted while executing parallel task.", e);
         } catch (ExecutionException e) {
-            task.cancel(true);
+            parallelTask.cancel(true);
             logger.error("Thread has failed while executing parallel task.", e);
             throw new RuntimeException("Thread has failed while executing parallel task.", e);
         } catch (TimeoutException e) {
-            task.cancel(true);
+            parallelTask.cancel(true);
             logger.error("Thread has timed out while executing parallel task.", e);
             throw new RuntimeException("Thread has timed out while executing parallel task.", e);
         }
@@ -735,11 +728,6 @@ public class World {
     @Nonnull
     private static Vector3D toVector3D(@Nonnull Point2D point1, @Nonnull Point2D point2) {
         return toVector3D(new Vector2D(point1, point2));
-    }
-
-    @Nonnull
-    private static Body[] toArray(@Nonnull Collection<Body> bodies) {
-        return bodies.toArray(new Body[bodies.size()]);
     }
 
     @SuppressWarnings("PublicField")
