@@ -49,7 +49,7 @@ public class World {
     private final MomentumTransferFactorProvider momentumTransferFactorProvider;
 
     @Nullable
-    private final ExecutorService parallelExecutor;
+    private final ExecutorService parallelTaskExecutor;
 
     private final Map<String, ColliderEntry> colliderEntryByName = new HashMap<>();
     private final SortedSet<ColliderEntry> colliderEntries = new TreeSet<>(ColliderEntry.comparator);
@@ -108,7 +108,7 @@ public class World {
         this.bodyList = bodyList;
         this.momentumTransferFactorProvider = momentumTransferFactorProvider;
 
-        this.parallelExecutor = multithreaded ? new ThreadPoolExecutor(
+        this.parallelTaskExecutor = multithreaded ? new ThreadPoolExecutor(
                 0, PARALLEL_THREAD_COUNT - 1, 5L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
                 new ThreadFactory() {
                     private final AtomicInteger threadIndex = new AtomicInteger();
@@ -246,7 +246,7 @@ public class World {
         int bodyCount = bodyCollection.size();
         Body[] bodies = bodyCollection.toArray(new Body[bodyCount]);
 
-        if (bodyCount < 1000 || parallelExecutor == null) {
+        if (bodyCount < 1000 || parallelTaskExecutor == null) {
             beforeStep(bodies, 0, bodyCount);
 
             for (int i = iterationCountPerStep; --i >= 0; ) {
@@ -258,19 +258,19 @@ public class World {
         } else {
             int middleIndex = bodyCount / PARALLEL_THREAD_COUNT;
 
-            Future<?> parallelTask = parallelExecutor.submit(() -> beforeStep(bodies, 0, middleIndex));
+            Future<?> parallelTask = parallelTaskExecutor.submit(() -> beforeStep(bodies, 0, middleIndex));
             beforeStep(bodies, middleIndex, bodyCount);
             awaitParallelTask(parallelTask);
 
             for (int i = iterationCountPerStep; --i >= 0; ) {
-                parallelTask = parallelExecutor.submit(() -> beforeIteration(bodies, 0, middleIndex));
+                parallelTask = parallelTaskExecutor.submit(() -> beforeIteration(bodies, 0, middleIndex));
                 beforeIteration(bodies, middleIndex, bodyCount);
                 awaitParallelTask(parallelTask);
 
                 processIteration(bodies);
             }
 
-            parallelTask = parallelExecutor.submit(() -> afterStep(bodies, 0, middleIndex));
+            parallelTask = parallelTaskExecutor.submit(() -> afterStep(bodies, 0, middleIndex));
             afterStep(bodies, middleIndex, bodyCount);
             awaitParallelTask(parallelTask);
         }
