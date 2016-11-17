@@ -105,7 +105,7 @@ public class RectangleAndRectangleCollider extends ColliderBase {
             }
         }
 
-        if (bestIntersectionPoint == null || bestCollisionNormalB == null) {
+        if (bestIntersectionPoint == null) {
             return null;
         }
 

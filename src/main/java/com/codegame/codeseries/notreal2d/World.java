@@ -198,9 +198,13 @@ public class World {
             return null;
         }
 
-        for (Body otherBody : bodyList.getPotentialIntersections(body)) {
+        List<Body> potentialIntersections = bodyList.getPotentialIntersections(body);
+        int intersectionCount = potentialIntersections.size();
+
+        for (int intersectionIndex = 0; intersectionIndex < intersectionCount; ++intersectionIndex) {
+            Body otherBody = potentialIntersections.get(intersectionIndex);
             if (body.isStatic() && otherBody.isStatic()) {
-                continue;
+                throw new IllegalArgumentException("Static body pairs are unexpected at this time.");
             }
 
             for (ColliderEntry colliderEntry : colliderEntries) {
@@ -219,11 +223,19 @@ public class World {
             return Collections.emptyList();
         }
 
+        List<Body> potentialIntersections = bodyList.getPotentialIntersections(body);
+        int intersectionCount = potentialIntersections.size();
+
+        if (intersectionCount == 0) {
+            return Collections.emptyList();
+        }
+
         List<CollisionInfo> collisionInfos = new ArrayList<>();
 
-        for (Body otherBody : bodyList.getPotentialIntersections(body)) {
+        for (int intersectionIndex = 0; intersectionIndex < intersectionCount; ++intersectionIndex) {
+            Body otherBody = potentialIntersections.get(intersectionIndex);
             if (body.isStatic() && otherBody.isStatic()) {
-                continue;
+                throw new IllegalArgumentException("Static body pairs are unexpected at this time.");
             }
 
             for (ColliderEntry colliderEntry : colliderEntries) {

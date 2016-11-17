@@ -6,6 +6,8 @@ import com.codeforces.commons.pair.IntPair;
 import com.codegame.codeseries.notreal2d.Body;
 import com.codegame.codeseries.notreal2d.listener.PositionListenerAdapter;
 import com.google.common.collect.UnmodifiableIterator;
+import gnu.trove.map.TLongObjectMap;
+import gnu.trove.map.hash.TLongObjectHashMap;
 import org.apache.commons.lang3.ArrayUtils;
 import org.jetbrains.annotations.Contract;
 
@@ -30,15 +32,15 @@ public class CellSpaceBodyList extends BodyListBase {
     private static final int MIN_FAST_Y = -1000;
     private static final int MAX_FAST_Y = 1000;
 
-    private static final int MAX_FAST_CELL_BODY_ID = 9999;
+    private static final int MAX_FAST_BODY_ID = 9999;
 
-    private final Set<Body> bodies = new HashSet<>();
-    private final Map<Long, Body> bodyById = new HashMap<>();
+    private final TLongObjectMap<Body> bodyById = new TLongObjectHashMap<>();
 
-    private final int[] fastCellXByBodyId = new int[MAX_FAST_CELL_BODY_ID + 1];
-    private final int[] fastCellYByBodyId = new int[MAX_FAST_CELL_BODY_ID + 1];
-    private final Point2D[] fastCellLeftTopByBodyId = new Point2D[MAX_FAST_CELL_BODY_ID + 1];
-    private final Point2D[] fastCellRightBottomByBodyId = new Point2D[MAX_FAST_CELL_BODY_ID + 1];
+    private final Body[] fastBodies = new Body[MAX_FAST_BODY_ID + 1];
+    private final int[] fastCellXByBodyId = new int[MAX_FAST_BODY_ID + 1];
+    private final int[] fastCellYByBodyId = new int[MAX_FAST_BODY_ID + 1];
+    private final Point2D[] fastCellLeftTopByBodyId = new Point2D[MAX_FAST_BODY_ID + 1];
+    private final Point2D[] fastCellRightBottomByBodyId = new Point2D[MAX_FAST_BODY_ID + 1];
 
     private final Body[][][] bodiesByCellXY = new Body[MAX_FAST_X - MIN_FAST_X + 1][MAX_FAST_Y - MIN_FAST_Y + 1][];
     private final Map<IntPair, Body[]> bodiesByCell = new HashMap<>();
@@ -55,8 +57,9 @@ public class CellSpaceBodyList extends BodyListBase {
     @Override
     public void addBody(@Nonnull Body body) {
         validateBody(body);
+        long id = body.getId();
 
-        if (bodies.contains(body)) {
+        if (hasBody(id)) {
             throw new IllegalStateException(body + " is already added.");
         }
 
@@ -68,29 +71,24 @@ public class CellSpaceBodyList extends BodyListBase {
             rebuildIndexes();
         }
 
-        bodies.add(body);
-        bodyById.put(body.getId(), body);
+        bodyById.put(id, body);
         addBodyToIndexes(body);
 
-        body.getCurrentState().registerPositionListener(new PositionListenerAdapter() {
-            private final Lock listenerLock = new ReentrantLock();
+        if (id >= 0L && id <= MAX_FAST_BODY_ID) {
+            @SuppressWarnings("NumericCastThatLosesPrecision") int fastId = (int) id;
+            fastBodies[fastId] = body;
 
-            @Override
-            public void afterChangePosition(@Nonnull Point2D oldPosition, @Nonnull Point2D newPosition) {
-                if (diameter > cellSize) {
-                    return;
-                }
+            body.getCurrentState().registerPositionListener(new PositionListenerAdapter() {
+                private final Lock listenerLock = new ReentrantLock();
 
-                int oldCellX;
-                int oldCellY;
+                @Override
+                public void afterChangePosition(@Nonnull Point2D oldPosition, @Nonnull Point2D newPosition) {
+                    if (diameter > cellSize) {
+                        return;
+                    }
 
-                int newCellX;
-                int newCellY;
-
-                if (body.getId() >= 0 && body.getId() <= MAX_FAST_CELL_BODY_ID) {
-                    @SuppressWarnings("NumericCastThatLosesPrecision") int bodyId = (int) body.getId();
-                    Point2D cellLeftTop = fastCellLeftTopByBodyId[bodyId];
-                    Point2D cellRightBottom = fastCellRightBottomByBodyId[bodyId];
+                    Point2D cellLeftTop = fastCellLeftTopByBodyId[fastId];
+                    Point2D cellRightBottom = fastCellRightBottomByBodyId[fastId];
 
                     Point2D position = body.getPosition();
 
@@ -99,46 +97,71 @@ public class CellSpaceBodyList extends BodyListBase {
                         return;
                     }
 
-                    oldCellX = getCellX(oldPosition.getX());
-                    oldCellY = getCellY(oldPosition.getY());
+                    int oldCellX = getCellX(oldPosition.getX());
+                    int oldCellY = getCellY(oldPosition.getY());
 
-                    newCellX = getCellX(newPosition.getX());
-                    newCellY = getCellY(newPosition.getY());
-                } else {
-                    oldCellX = getCellX(oldPosition.getX());
-                    oldCellY = getCellY(oldPosition.getY());
+                    int newCellX = getCellX(newPosition.getX());
+                    int newCellY = getCellY(newPosition.getY());
 
-                    newCellX = getCellX(newPosition.getX());
-                    newCellY = getCellY(newPosition.getY());
+                    listenerLock.lock();
+                    try {
+                        removeBodyFromIndexes(body, oldCellX, oldCellY);
+                        addBodyToIndexes(body, newCellX, newCellY);
+                    } finally {
+                        listenerLock.unlock();
+                    }
+                }
+            }, getClass().getSimpleName() + "Listener");
+        } else {
+            body.getCurrentState().registerPositionListener(new PositionListenerAdapter() {
+                private final Lock listenerLock = new ReentrantLock();
+
+                @Override
+                public void afterChangePosition(@Nonnull Point2D oldPosition, @Nonnull Point2D newPosition) {
+                    if (diameter > cellSize) {
+                        return;
+                    }
+
+                    int oldCellX = getCellX(oldPosition.getX());
+                    int oldCellY = getCellY(oldPosition.getY());
+
+                    int newCellX = getCellX(newPosition.getX());
+                    int newCellY = getCellY(newPosition.getY());
 
                     if (oldCellX == newCellX && oldCellY == newCellY) {
                         return;
                     }
-                }
 
-                listenerLock.lock();
-                try {
-                    removeBodyFromIndexes(body, oldCellX, oldCellY);
-                    addBodyToIndexes(body, newCellX, newCellY);
-                } finally {
-                    listenerLock.unlock();
+                    listenerLock.lock();
+                    try {
+                        removeBodyFromIndexes(body, oldCellX, oldCellY);
+                        addBodyToIndexes(body, newCellX, newCellY);
+                    } finally {
+                        listenerLock.unlock();
+                    }
                 }
-            }
-        }, getClass().getSimpleName() + "Listener");
+            }, getClass().getSimpleName() + "Listener");
+        }
     }
 
+    @SuppressWarnings("NumericCastThatLosesPrecision")
     @Override
     public void removeBody(@Nonnull Body body) {
         validateBody(body);
+        long id = body.getId();
 
-        if (bodyById.remove(body.getId()) == null) {
+        if (bodyById.remove(id) == null) {
             throw new IllegalStateException("Can't find " + body + '.');
         }
 
-        bodies.remove(body);
         removeBodyFromIndexes(body);
+
+        if (id >= 0L && id <= MAX_FAST_BODY_ID) {
+            fastBodies[(int) id] = null;
+        }
     }
 
+    @SuppressWarnings("NumericCastThatLosesPrecision")
     @Override
     public void removeBody(long id) {
         Body body;
@@ -147,24 +170,34 @@ public class CellSpaceBodyList extends BodyListBase {
             throw new IllegalStateException("Can't find Body {id=" + id + "}.");
         }
 
-        bodies.remove(body);
         removeBodyFromIndexes(body);
+
+        if (id >= 0L && id <= MAX_FAST_BODY_ID) {
+            fastBodies[(int) id] = null;
+        }
     }
 
+    @SuppressWarnings("NumericCastThatLosesPrecision")
     @Override
     public void removeBodyQuietly(@Nullable Body body) {
         if (body == null) {
             return;
         }
 
-        if (bodyById.remove(body.getId()) == null) {
+        long id = body.getId();
+
+        if (bodyById.remove(id) == null) {
             return;
         }
 
-        bodies.remove(body);
         removeBodyFromIndexes(body);
+
+        if (id >= 0L && id <= MAX_FAST_BODY_ID) {
+            fastBodies[(int) id] = null;
+        }
     }
 
+    @SuppressWarnings("NumericCastThatLosesPrecision")
     @Override
     public void removeBodyQuietly(long id) {
         Body body;
@@ -173,40 +206,49 @@ public class CellSpaceBodyList extends BodyListBase {
             return;
         }
 
-        bodies.remove(body);
         removeBodyFromIndexes(body);
+
+        if (id >= 0L && id <= MAX_FAST_BODY_ID) {
+            fastBodies[(int) id] = null;
+        }
     }
 
+    @SuppressWarnings("NumericCastThatLosesPrecision")
     @Override
     public boolean hasBody(@Nonnull Body body) {
         validateBody(body);
 
-        return bodies.contains(body);
+        long id = body.getId();
+        return id >= 0L && id <= MAX_FAST_BODY_ID ? fastBodies[(int) id] != null : bodyById.containsKey(id);
     }
 
+    @SuppressWarnings("NumericCastThatLosesPrecision")
     @Override
     public boolean hasBody(long id) {
-        return bodyById.containsKey(id);
+        return id >= 0L && id <= MAX_FAST_BODY_ID ? fastBodies[(int) id] != null : bodyById.containsKey(id);
     }
 
+    @SuppressWarnings("NumericCastThatLosesPrecision")
     @Override
     public Body getBody(long id) {
-        return bodyById.get(id);
+        return id >= 0L && id <= MAX_FAST_BODY_ID ? fastBodies[(int) id] : bodyById.get(id);
     }
 
     @Override
     public List<Body> getBodies() {
-        return new UnmodifiableCollectionWrapperList<>(bodies);
+        return new UnmodifiableCollectionWrapperList<>(bodyById.valueCollection());
     }
 
     /**
      * May not find all potential intersections for bodies whose size exceeds cell size.
      */
+    @SuppressWarnings("OverlyLongMethod")
     @Override
     public List<Body> getPotentialIntersections(@Nonnull Body body) {
         validateBody(body);
+        long id = body.getId();
 
-        if (!bodies.contains(body)) {
+        if (!hasBody(id)) {
             throw new IllegalStateException("Can't find " + body + '.');
         }
 
@@ -221,20 +263,39 @@ public class CellSpaceBodyList extends BodyListBase {
         int cellX;
         int cellY;
 
-        if (body.getId() >= 0 && body.getId() <= MAX_FAST_CELL_BODY_ID) {
-            @SuppressWarnings("NumericCastThatLosesPrecision") int bodyId = (int) body.getId();
-            cellX = fastCellXByBodyId[bodyId];
-            cellY = fastCellYByBodyId[bodyId];
+        if (id >= 0L && id <= MAX_FAST_BODY_ID) {
+            @SuppressWarnings("NumericCastThatLosesPrecision") int fastId = (int) id;
+            cellX = fastCellXByBodyId[fastId];
+            cellY = fastCellYByBodyId[fastId];
         } else {
             cellX = getCellX(body.getX());
             cellY = getCellY(body.getY());
         }
 
-        for (int cellOffsetX = -1; cellOffsetX <= 1; ++cellOffsetX) {
-            for (int cellOffsetY = -1; cellOffsetY <= 1; ++cellOffsetY) {
-                Body[] cellBodies = getCellBodies(cellX + cellOffsetX, cellY + cellOffsetY);
-                addPotentialIntersections(body, cellBodies, potentialIntersections);
-            }
+        if (body.isStatic()) {
+            fastAddPotentialIntersectionsStatic(body, getCellBodies(cellX - 1, cellY - 1), potentialIntersections);
+            fastAddPotentialIntersectionsStatic(body, getCellBodies(cellX - 1, cellY), potentialIntersections);
+            fastAddPotentialIntersectionsStatic(body, getCellBodies(cellX - 1, cellY + 1), potentialIntersections);
+
+            fastAddPotentialIntersectionsStatic(body, getCellBodies(cellX, cellY - 1), potentialIntersections);
+            addPotentialIntersectionsStatic(body, getCellBodies(cellX, cellY), potentialIntersections);
+            fastAddPotentialIntersectionsStatic(body, getCellBodies(cellX, cellY + 1), potentialIntersections);
+
+            fastAddPotentialIntersectionsStatic(body, getCellBodies(cellX + 1, cellY - 1), potentialIntersections);
+            fastAddPotentialIntersectionsStatic(body, getCellBodies(cellX + 1, cellY), potentialIntersections);
+            fastAddPotentialIntersectionsStatic(body, getCellBodies(cellX + 1, cellY + 1), potentialIntersections);
+        } else {
+            fastAddPotentialIntersectionsNotStatic(body, getCellBodies(cellX - 1, cellY - 1), potentialIntersections);
+            fastAddPotentialIntersectionsNotStatic(body, getCellBodies(cellX - 1, cellY), potentialIntersections);
+            fastAddPotentialIntersectionsNotStatic(body, getCellBodies(cellX - 1, cellY + 1), potentialIntersections);
+
+            fastAddPotentialIntersectionsNotStatic(body, getCellBodies(cellX, cellY - 1), potentialIntersections);
+            addPotentialIntersectionsNotStatic(body, getCellBodies(cellX, cellY), potentialIntersections);
+            fastAddPotentialIntersectionsNotStatic(body, getCellBodies(cellX, cellY + 1), potentialIntersections);
+
+            fastAddPotentialIntersectionsNotStatic(body, getCellBodies(cellX + 1, cellY - 1), potentialIntersections);
+            fastAddPotentialIntersectionsNotStatic(body, getCellBodies(cellX + 1, cellY), potentialIntersections);
+            fastAddPotentialIntersectionsNotStatic(body, getCellBodies(cellX + 1, cellY + 1), potentialIntersections);
         }
 
         return Collections.unmodifiableList(potentialIntersections);
@@ -269,6 +330,106 @@ public class CellSpaceBodyList extends BodyListBase {
         potentialIntersections.add(otherBody);
     }
 
+    private static void addPotentialIntersectionsStatic(
+            @Nonnull Body body, @Nullable Body[] bodies, @Nonnull List<Body> potentialIntersections) {
+        if (bodies == null) {
+            return;
+        }
+
+        for (int bodyIndex = 0, bodyCount = bodies.length; bodyIndex < bodyCount; ++bodyIndex) {
+            addPotentialIntersectionStatic(body, bodies[bodyIndex], potentialIntersections);
+        }
+    }
+
+    private static void addPotentialIntersectionStatic(
+            @Nonnull Body body, @Nonnull Body otherBody, @Nonnull List<Body> potentialIntersections) {
+        if (otherBody.equals(body)) {
+            return;
+        }
+
+        if (otherBody.isStatic()) {
+            return;
+        }
+
+        if (sqr(otherBody.getForm().getCircumcircleRadius() + body.getForm().getCircumcircleRadius())
+                < otherBody.getSquaredDistanceTo(body)) {
+            return;
+        }
+
+        potentialIntersections.add(otherBody);
+    }
+
+    private static void addPotentialIntersectionsNotStatic(
+            @Nonnull Body body, @Nullable Body[] bodies, @Nonnull List<Body> potentialIntersections) {
+        if (bodies == null) {
+            return;
+        }
+
+        for (int bodyIndex = 0, bodyCount = bodies.length; bodyIndex < bodyCount; ++bodyIndex) {
+            addPotentialIntersectionNotStatic(body, bodies[bodyIndex], potentialIntersections);
+        }
+    }
+
+    private static void addPotentialIntersectionNotStatic(
+            @Nonnull Body body, @Nonnull Body otherBody, @Nonnull List<Body> potentialIntersections) {
+        if (otherBody.equals(body)) {
+            return;
+        }
+
+        if (sqr(otherBody.getForm().getCircumcircleRadius() + body.getForm().getCircumcircleRadius())
+                < otherBody.getSquaredDistanceTo(body)) {
+            return;
+        }
+
+        potentialIntersections.add(otherBody);
+    }
+
+    private static void fastAddPotentialIntersectionsStatic(
+            @Nonnull Body body, @Nullable Body[] bodies, @Nonnull List<Body> potentialIntersections) {
+        if (bodies == null) {
+            return;
+        }
+
+        for (int bodyIndex = 0, bodyCount = bodies.length; bodyIndex < bodyCount; ++bodyIndex) {
+            fastAddPotentialIntersectionStatic(body, bodies[bodyIndex], potentialIntersections);
+        }
+    }
+
+    private static void fastAddPotentialIntersectionStatic(
+            @Nonnull Body body, @Nonnull Body otherBody, @Nonnull List<Body> potentialIntersections) {
+        if (otherBody.isStatic()) {
+            return;
+        }
+
+        if (sqr(otherBody.getForm().getCircumcircleRadius() + body.getForm().getCircumcircleRadius())
+                < otherBody.getSquaredDistanceTo(body)) {
+            return;
+        }
+
+        potentialIntersections.add(otherBody);
+    }
+
+    private static void fastAddPotentialIntersectionsNotStatic(
+            @Nonnull Body body, @Nullable Body[] bodies, @Nonnull List<Body> potentialIntersections) {
+        if (bodies == null) {
+            return;
+        }
+
+        for (int bodyIndex = 0, bodyCount = bodies.length; bodyIndex < bodyCount; ++bodyIndex) {
+            fastAddPotentialIntersectionNotStatic(body, bodies[bodyIndex], potentialIntersections);
+        }
+    }
+
+    private static void fastAddPotentialIntersectionNotStatic(
+            @Nonnull Body body, @Nonnull Body otherBody, @Nonnull List<Body> potentialIntersections) {
+        if (sqr(otherBody.getForm().getCircumcircleRadius() + body.getForm().getCircumcircleRadius())
+                < otherBody.getSquaredDistanceTo(body)) {
+            return;
+        }
+
+        potentialIntersections.add(otherBody);
+    }
+
     private void rebuildIndexes() {
         for (int cellX = MIN_FAST_X; cellX <= MAX_FAST_X; ++cellX) {
             for (int cellY = MIN_FAST_Y; cellY <= MAX_FAST_Y; ++cellY) {
@@ -279,7 +440,10 @@ public class CellSpaceBodyList extends BodyListBase {
         bodiesByCell.clear();
         cellExceedingBodies.clear();
 
-        bodies.forEach(this::addBodyToIndexes);
+        bodyById.forEachValue(body -> {
+            addBodyToIndexes(body);
+            return true;
+        });
     }
 
     private void addBodyToIndexes(@Nonnull Body body) {
@@ -307,12 +471,14 @@ public class CellSpaceBodyList extends BodyListBase {
             bodiesByCell.put(cell, cellBodies);
         }
 
-        if (body.getId() >= 0 && body.getId() <= MAX_FAST_CELL_BODY_ID) {
-            @SuppressWarnings("NumericCastThatLosesPrecision") int bodyId = (int) body.getId();
-            fastCellXByBodyId[bodyId] = cellX;
-            fastCellYByBodyId[bodyId] = cellY;
-            fastCellLeftTopByBodyId[bodyId] = new Point2D(cellX * cellSize, cellY * cellSize);
-            fastCellRightBottomByBodyId[bodyId] = fastCellLeftTopByBodyId[bodyId].copy().add(cellSize, cellSize);
+        long id = body.getId();
+
+        if (id >= 0L && id <= MAX_FAST_BODY_ID) {
+            @SuppressWarnings("NumericCastThatLosesPrecision") int fastId = (int) id;
+            fastCellXByBodyId[fastId] = cellX;
+            fastCellYByBodyId[fastId] = cellY;
+            fastCellLeftTopByBodyId[fastId] = new Point2D(cellX * cellSize, cellY * cellSize);
+            fastCellRightBottomByBodyId[fastId] = new Point2D((cellX + 1) * cellSize, (cellY + 1) * cellSize);
         }
     }
 
