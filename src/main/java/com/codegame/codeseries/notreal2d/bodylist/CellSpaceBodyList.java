@@ -1,13 +1,13 @@
 package com.codegame.codeseries.notreal2d.bodylist;
 
+import com.codeforces.commons.codec.PackUtil;
+import com.codeforces.commons.collection.CollectionUtil;
 import com.codeforces.commons.geometry.Point2D;
 import com.codeforces.commons.math.NumberUtil;
-import com.codeforces.commons.pair.IntPair;
 import com.codegame.codeseries.notreal2d.Body;
 import com.codegame.codeseries.notreal2d.listener.PositionListenerAdapter;
 import com.google.common.collect.UnmodifiableIterator;
 import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
 import org.apache.commons.lang3.ArrayUtils;
 import org.jetbrains.annotations.Contract;
 
@@ -18,12 +18,11 @@ import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static com.codeforces.commons.math.Math.floor;
-import static com.codeforces.commons.math.Math.sqr;
+import static com.codeforces.commons.math.Math.*;
 
 /**
  * @author Maxim Shipko (sladethe@gmail.com)
- *         Date: 02.06.2015
+ * Date: 02.06.2015
  */
 @NotThreadSafe
 public class CellSpaceBodyList extends BodyListBase {
@@ -32,9 +31,12 @@ public class CellSpaceBodyList extends BodyListBase {
     private static final int MIN_FAST_Y = -1000;
     private static final int MAX_FAST_Y = 1000;
 
+    private static final int FAST_COLUMN_COUNT = MAX_FAST_X - MIN_FAST_X + 1;
+    private static final int FAST_ROW_COUNT = MAX_FAST_Y - MIN_FAST_Y + 1;
+
     private static final int MAX_FAST_BODY_ID = 9999;
 
-    private final TLongObjectMap<Body> bodyById = new TLongObjectHashMap<>();
+    private final TLongObjectMap<Body> bodyById = CollectionUtil.newTLongObjectMap();
 
     private final Body[] fastBodies = new Body[MAX_FAST_BODY_ID + 1];
     private final int[] fastCellXByBodyId = new int[MAX_FAST_BODY_ID + 1];
@@ -42,8 +44,8 @@ public class CellSpaceBodyList extends BodyListBase {
     private final Point2D[] fastCellLeftTopByBodyId = new Point2D[MAX_FAST_BODY_ID + 1];
     private final Point2D[] fastCellRightBottomByBodyId = new Point2D[MAX_FAST_BODY_ID + 1];
 
-    private final Body[][][] bodiesByCellXY = new Body[MAX_FAST_X - MIN_FAST_X + 1][MAX_FAST_Y - MIN_FAST_Y + 1][];
-    private final Map<IntPair, Body[]> bodiesByCell = new HashMap<>();
+    private final Body[][] bodiesByCellXY = new Body[FAST_COLUMN_COUNT * FAST_ROW_COUNT][];
+    private final TLongObjectMap<Body[]> bodiesByCell = CollectionUtil.newTLongObjectMap();
     private final Set<Body> cellExceedingBodies = new HashSet<>();
 
     private double cellSize;
@@ -431,9 +433,11 @@ public class CellSpaceBodyList extends BodyListBase {
     }
 
     private void rebuildIndexes() {
-        for (int cellX = MIN_FAST_X; cellX <= MAX_FAST_X; ++cellX) {
-            for (int cellY = MIN_FAST_Y; cellY <= MAX_FAST_Y; ++cellY) {
-                bodiesByCellXY[cellX - MIN_FAST_X][cellY - MIN_FAST_Y] = null;
+        for (int cellY = MIN_FAST_Y; cellY <= MAX_FAST_Y; ++cellY) {
+            int rowOffset = (cellY - MIN_FAST_Y) * FAST_COLUMN_COUNT;
+
+            for (int cellX = MIN_FAST_X; cellX <= MAX_FAST_X; ++cellX) {
+                bodiesByCellXY[rowOffset + cellX - MIN_FAST_X] = null;
             }
         }
 
@@ -461,11 +465,12 @@ public class CellSpaceBodyList extends BodyListBase {
 
     private void addBodyToIndexes(@Nonnull Body body, int cellX, int cellY) {
         if (cellX >= MIN_FAST_X && cellX <= MAX_FAST_X && cellY >= MIN_FAST_Y && cellY <= MAX_FAST_Y) {
-            Body[] cellBodies = bodiesByCellXY[cellX - MIN_FAST_X][cellY - MIN_FAST_Y];
+            int cellXY = (cellY - MIN_FAST_Y) * FAST_COLUMN_COUNT + cellX - MIN_FAST_X;
+            Body[] cellBodies = bodiesByCellXY[cellXY];
             cellBodies = addBodyToCell(cellBodies, body);
-            bodiesByCellXY[cellX - MIN_FAST_X][cellY - MIN_FAST_Y] = cellBodies;
+            bodiesByCellXY[cellXY] = cellBodies;
         } else {
-            IntPair cell = new IntPair(cellX, cellY);
+            @SuppressWarnings("SuspiciousNameCombination") long cell = PackUtil.packInts(cellX, cellY);
             Body[] cellBodies = bodiesByCell.get(cell);
             cellBodies = addBodyToCell(cellBodies, body);
             bodiesByCell.put(cell, cellBodies);
@@ -497,11 +502,12 @@ public class CellSpaceBodyList extends BodyListBase {
 
     private void removeBodyFromIndexes(@Nonnull Body body, int cellX, int cellY) {
         if (cellX >= MIN_FAST_X && cellX <= MAX_FAST_X && cellY >= MIN_FAST_Y && cellY <= MAX_FAST_Y) {
-            Body[] cellBodies = bodiesByCellXY[cellX - MIN_FAST_X][cellY - MIN_FAST_Y];
+            int cellXY = (cellY - MIN_FAST_Y) * FAST_COLUMN_COUNT + cellX - MIN_FAST_X;
+            Body[] cellBodies = bodiesByCellXY[cellXY];
             cellBodies = removeBodyFromCell(cellBodies, body);
-            bodiesByCellXY[cellX - MIN_FAST_X][cellY - MIN_FAST_Y] = cellBodies;
+            bodiesByCellXY[cellXY] = cellBodies;
         } else {
-            IntPair cell = new IntPair(cellX, cellY);
+            @SuppressWarnings("SuspiciousNameCombination") long cell = PackUtil.packInts(cellX, cellY);
             Body[] cellBodies = bodiesByCell.get(cell);
             cellBodies = removeBodyFromCell(cellBodies, body);
 
@@ -516,7 +522,7 @@ public class CellSpaceBodyList extends BodyListBase {
     @Nonnull
     private static Body[] addBodyToCell(@Nullable Body[] cellBodies, @Nonnull Body body) {
         if (cellBodies == null) {
-            return new Body[]{body};
+            return new Body[] {body};
         }
 
         int bodyIndex = ArrayUtils.indexOf(cellBodies, body);
@@ -552,9 +558,10 @@ public class CellSpaceBodyList extends BodyListBase {
     @Nullable
     private Body[] getCellBodies(int cellX, int cellY) {
         if (cellX >= MIN_FAST_X && cellX <= MAX_FAST_X && cellY >= MIN_FAST_Y && cellY <= MAX_FAST_Y) {
-            return bodiesByCellXY[cellX - MIN_FAST_X][cellY - MIN_FAST_Y];
+            return bodiesByCellXY[(cellY - MIN_FAST_Y) * FAST_COLUMN_COUNT + cellX - MIN_FAST_X];
         } else {
-            return bodiesByCell.get(new IntPair(cellX, cellY));
+            @SuppressWarnings("SuspiciousNameCombination") long cell = PackUtil.packInts(cellX, cellY);
+            return bodiesByCell.get(cell);
         }
     }
 
