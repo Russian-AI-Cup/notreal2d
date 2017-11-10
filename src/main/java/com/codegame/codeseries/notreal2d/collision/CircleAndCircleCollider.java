@@ -6,15 +6,14 @@ import com.codegame.codeseries.notreal2d.Body;
 import com.codegame.codeseries.notreal2d.form.CircularForm;
 import com.codegame.codeseries.notreal2d.form.Shape;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import javax.annotation.*;
 
 /**
  * @author Maxim Shipko (sladethe@gmail.com)
- *         Date: 08.06.2015
+ * Date: 08.06.2015
  */
 public class CircleAndCircleCollider extends ColliderBase {
-    public CircleAndCircleCollider(double epsilon) {
+    public CircleAndCircleCollider(@Nonnegative double epsilon) {
         super(epsilon);
     }
 
@@ -40,17 +39,17 @@ public class CircleAndCircleCollider extends ColliderBase {
         Vector2D collisionNormalB;
         Point2D collisionPoint;
 
-        if (distance >= epsilon) {
+        if (distance > epsilon) {
             Vector2D vectorBA = new Vector2D(bodyB.getPosition(), bodyA.getPosition());
-            collisionNormalB = vectorBA.copy().normalize();
+            collisionNormalB = vectorBA.copy().normalize(epsilon);
             collisionPoint = bodyB.getPosition().copy().add(vectorBA.copy().multiply(radiusB / (radiusA + radiusB)));
         } else {
             Vector2D relativeVelocityB = bodyB.getVelocity().copy().subtract(bodyA.getVelocity());
 
-            if (relativeVelocityB.getLength() >= epsilon) {
-                collisionNormalB = relativeVelocityB.normalize();
-            } else if (bodyB.getVelocity().getLength() >= epsilon) {
-                collisionNormalB = bodyB.getVelocity().copy().normalize();
+            if (relativeVelocityB.getLength() > epsilon) {
+                collisionNormalB = relativeVelocityB.normalize(epsilon);
+            } else if (bodyB.getVelocity().getLength() > epsilon) {
+                collisionNormalB = bodyB.getVelocity().copy().normalize(epsilon);
             } else {
                 collisionNormalB = new Vector2D(1.0D, 0.0D);
             }

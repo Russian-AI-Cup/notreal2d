@@ -3,18 +3,17 @@ package com.codegame.codeseries.notreal2d.collision;
 import com.codegame.codeseries.notreal2d.Body;
 import com.codegame.codeseries.notreal2d.form.Form;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import javax.annotation.*;
 
 /**
  * @author Maxim Shipko (sladethe@gmail.com)
- *         Date: 02.07.2015
+ * Date: 02.07.2015
  */
 public abstract class ColliderBase implements Collider {
     @SuppressWarnings("ProtectedField")
     protected final double epsilon;
 
-    protected ColliderBase(double epsilon) {
+    protected ColliderBase(@Nonnegative double epsilon) {
         this.epsilon = epsilon;
     }
 

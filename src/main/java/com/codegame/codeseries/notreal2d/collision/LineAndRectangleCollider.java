@@ -1,16 +1,11 @@
 package com.codegame.codeseries.notreal2d.collision;
 
-import com.codeforces.commons.geometry.Line2D;
-import com.codeforces.commons.geometry.Point2D;
-import com.codeforces.commons.geometry.Vector2D;
+import com.codeforces.commons.geometry.*;
 import com.codegame.codeseries.notreal2d.Body;
-import com.codegame.codeseries.notreal2d.form.LinearForm;
-import com.codegame.codeseries.notreal2d.form.RectangularForm;
-import com.codegame.codeseries.notreal2d.form.Shape;
+import com.codegame.codeseries.notreal2d.form.*;
 import com.codegame.codeseries.notreal2d.util.GeometryUtil;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import javax.annotation.*;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,10 +13,11 @@ import static com.codeforces.commons.math.Math.*;
 
 /**
  * @author Maxim Shipko (sladethe@gmail.com)
- *         Date: 19.06.2015
+ * Date: 19.06.2015
+ * TODO check epsilon comparison
  */
 public class LineAndRectangleCollider extends ColliderBase {
-    public LineAndRectangleCollider(double epsilon) {
+    public LineAndRectangleCollider(@Nonnegative double epsilon) {
         super(epsilon);
     }
 

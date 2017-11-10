@@ -14,8 +14,7 @@ import org.apache.commons.math3.geometry.euclidean.threed.Vector3D;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import javax.annotation.*;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -24,7 +23,7 @@ import static com.codeforces.commons.math.Math.*;
 
 /**
  * @author Maxim Shipko (sladethe@gmail.com)
- *         Date: 02.06.2015
+ * Date: 02.06.2015
  */
 @SuppressWarnings("WeakerAccess")
 public class World {
@@ -69,21 +68,23 @@ public class World {
         this(iterationCountPerStep, stepCountPerTimeUnit, Defaults.EPSILON);
     }
 
-    public World(int iterationCountPerStep, int stepCountPerTimeUnit, double epsilon) {
+    public World(int iterationCountPerStep, int stepCountPerTimeUnit, @Nonnegative double epsilon) {
         this(iterationCountPerStep, stepCountPerTimeUnit, epsilon, new SimpleBodyList());
     }
 
-    public World(int iterationCountPerStep, int stepCountPerTimeUnit, double epsilon, BodyList bodyList) {
+    public World(int iterationCountPerStep, int stepCountPerTimeUnit, @Nonnegative double epsilon,
+                 @Nonnull BodyList bodyList) {
         this(iterationCountPerStep, stepCountPerTimeUnit, epsilon, bodyList, null);
     }
 
-    public World(int iterationCountPerStep, int stepCountPerTimeUnit, double epsilon, BodyList bodyList,
-                 @Nullable MomentumTransferFactorProvider momentumTransferFactorProvider) {
+    public World(int iterationCountPerStep, int stepCountPerTimeUnit, @Nonnegative double epsilon,
+                 @Nonnull BodyList bodyList, @Nullable MomentumTransferFactorProvider momentumTransferFactorProvider) {
         this(iterationCountPerStep, stepCountPerTimeUnit, epsilon, bodyList, momentumTransferFactorProvider, false);
     }
 
-    public World(int iterationCountPerStep, int stepCountPerTimeUnit, double epsilon, BodyList bodyList,
-                 @Nullable MomentumTransferFactorProvider momentumTransferFactorProvider, boolean multithreaded) {
+    public World(int iterationCountPerStep, int stepCountPerTimeUnit, @Nonnegative double epsilon,
+                 @Nonnull BodyList bodyList, @Nullable MomentumTransferFactorProvider momentumTransferFactorProvider,
+                 boolean multithreaded) {
         if (iterationCountPerStep < 1) {
             throw new IllegalArgumentException("Argument 'iterationCountPerStep' is zero or negative.");
         }

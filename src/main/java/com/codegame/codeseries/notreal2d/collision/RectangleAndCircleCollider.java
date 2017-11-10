@@ -3,20 +3,18 @@ package com.codegame.codeseries.notreal2d.collision;
 import com.codeforces.commons.geometry.Line2D;
 import com.codeforces.commons.geometry.Point2D;
 import com.codegame.codeseries.notreal2d.Body;
-import com.codegame.codeseries.notreal2d.form.CircularForm;
-import com.codegame.codeseries.notreal2d.form.RectangularForm;
-import com.codegame.codeseries.notreal2d.form.Shape;
+import com.codegame.codeseries.notreal2d.form.*;
 import com.codegame.codeseries.notreal2d.util.GeometryUtil;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import javax.annotation.*;
 
 /**
  * @author Maxim Shipko (sladethe@gmail.com)
- *         Date: 19.06.2015
+ * Date: 19.06.2015
+ * TODO check epsilon comparison
  */
 public class RectangleAndCircleCollider extends ColliderBase {
-    public RectangleAndCircleCollider(double epsilon) {
+    public RectangleAndCircleCollider(@Nonnegative double epsilon) {
         super(epsilon);
     }
 

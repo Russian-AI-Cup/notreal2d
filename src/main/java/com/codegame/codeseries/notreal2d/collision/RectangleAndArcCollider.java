@@ -1,21 +1,15 @@
 package com.codegame.codeseries.notreal2d.collision;
 
-import com.codeforces.commons.geometry.Line2D;
-import com.codeforces.commons.geometry.Point2D;
-import com.codeforces.commons.geometry.Vector2D;
+import com.codeforces.commons.geometry.*;
 import com.codeforces.commons.holder.Mutable;
 import com.codeforces.commons.holder.SimpleMutable;
 import com.codeforces.commons.pair.Pair;
 import com.codegame.codeseries.notreal2d.Body;
-import com.codegame.codeseries.notreal2d.form.ArcForm;
-import com.codegame.codeseries.notreal2d.form.Form;
-import com.codegame.codeseries.notreal2d.form.RectangularForm;
-import com.codegame.codeseries.notreal2d.form.Shape;
+import com.codegame.codeseries.notreal2d.form.*;
 import com.codegame.codeseries.notreal2d.util.GeometryUtil;
 import org.apache.commons.lang3.mutable.MutableDouble;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import javax.annotation.*;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,10 +17,11 @@ import static com.codeforces.commons.math.Math.*;
 
 /**
  * @author Maxim Shipko (sladethe@gmail.com)
- *         Date: 26.06.2015
+ * Date: 26.06.2015
+ * TODO check epsilon comparison
  */
 public class RectangleAndArcCollider extends ColliderBase {
-    public RectangleAndArcCollider(double epsilon) {
+    public RectangleAndArcCollider(@Nonnegative double epsilon) {
         super(epsilon);
     }
 

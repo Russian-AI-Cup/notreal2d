@@ -6,9 +6,12 @@ import com.codeforces.commons.text.StringUtil;
 import com.codegame.codeseries.notreal2d.Body;
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nonnegative;
+
 /**
  * @author Maxim Shipko (sladethe@gmail.com)
- *         Date: 08.06.2015
+ * Date: 08.06.2015
+ * TODO check epsilon comparison
  */
 public class CollisionInfo {
     private static final Logger logger = Logger.getLogger(CollisionInfo.class);
@@ -19,17 +22,14 @@ public class CollisionInfo {
     private final Vector2D normalB;
     private final double depth;
 
-    public CollisionInfo(Body bodyA, Body bodyB, Point2D point, Vector2D normalB, double depth, double epsilon) {
+    public CollisionInfo(
+            Body bodyA, Body bodyB, Point2D point, Vector2D normalB, double depth, @Nonnegative double epsilon) {
         this.bodyA = bodyA;
         this.bodyB = bodyB;
         this.point = point;
         this.normalB = normalB;
 
-        if (depth < 0.0D && depth > -epsilon) {
-            this.depth = 0.0D;
-        } else {
-            this.depth = depth;
-        }
+        this.depth = depth < 0.0D && depth > -epsilon ? 0.0D : depth;
 
         if (Double.isNaN(this.depth) || Double.isInfinite(this.depth) || this.depth < 0.0D) {
             logger.error(String.format(

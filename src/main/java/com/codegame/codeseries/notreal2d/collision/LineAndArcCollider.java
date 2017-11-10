@@ -3,15 +3,14 @@ package com.codegame.codeseries.notreal2d.collision;
 import com.codegame.codeseries.notreal2d.Body;
 import com.codegame.codeseries.notreal2d.form.Shape;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import javax.annotation.*;
 
 /**
  * @author Maxim Shipko (sladethe@gmail.com)
- *         Date: 26.06.2015
+ * Date: 26.06.2015
  */
 public class LineAndArcCollider extends ColliderBase {
-    public LineAndArcCollider(double epsilon) {
+    public LineAndArcCollider(@Nonnegative double epsilon) {
         super(epsilon);
     }
 

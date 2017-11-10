@@ -1,25 +1,21 @@
 package com.codegame.codeseries.notreal2d.collision;
 
-import com.codeforces.commons.geometry.Line2D;
-import com.codeforces.commons.geometry.Point2D;
-import com.codeforces.commons.geometry.Vector2D;
+import com.codeforces.commons.geometry.*;
 import com.codegame.codeseries.notreal2d.Body;
 import com.codegame.codeseries.notreal2d.form.LinearForm;
 import com.codegame.codeseries.notreal2d.form.Shape;
 import org.apache.commons.lang3.NotImplementedException;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import javax.annotation.*;
 
-import static com.codeforces.commons.math.Math.max;
-import static com.codeforces.commons.math.Math.min;
+import static com.codeforces.commons.math.Math.*;
 
 /**
  * @author Maxim Shipko (sladethe@gmail.com)
- *         Date: 08.06.2015
+ * Date: 08.06.2015
  */
 public class LineAndLineCollider extends ColliderBase {
-    public LineAndLineCollider(double epsilon) {
+    public LineAndLineCollider(@Nonnegative double epsilon) {
         super(epsilon);
     }
 
